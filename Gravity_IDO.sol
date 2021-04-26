@@ -61,16 +61,16 @@ contract GravityIDO is Ownable {
         if (totalWETHCollected > WETHifSoldOut){
             uint userPercent = (10**18) * userBal / totalWETHCollected;
             GFItoUser = userPercent * GFIforSale / (10 ** 18);
-            WETHtoReturn = userBal - (GFItoUser*priceInEth);
+            WETHtoReturn = userBal - (GFItoUser*priceInEth/(10**18));
         }
         else {
             GFItoUser = (10**18) * userBal / priceInEth;
         }
         
         //Transfer tokens to user
-        require(GFI.transferFrom(address(this), msg.sender, GFItoUser), "Failed to transfer GFI to claimer");
+        require(GFI.transfer(msg.sender, GFItoUser), "Failed to transfer GFI to claimer");
         if (WETHtoReturn > 0){
-            require(WETH.transferFrom(address(this), msg.sender, WETHtoReturn), "Failed to return extra WETH to claimer");
+            require(WETH.transfer(msg.sender, WETHtoReturn), "Failed to return extra WETH to claimer");
         }
     }
     
@@ -86,7 +86,7 @@ contract GravityIDO is Ownable {
         
         GFIforSale = GFI.balanceOf(address(this));
         totalWETHCollected = WETH.balanceOf(address(this));
-        WETHifSoldOut = GFIforSale * priceInEth;
+        WETHifSoldOut = GFIforSale * priceInEth / (10**18);
         IDO_DONE = true;
     }
 }

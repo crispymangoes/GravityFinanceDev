@@ -10,23 +10,26 @@ contract GravityIDO is Ownable {
     
     IERC20 private WETH;
     IERC20 private GFI;
-    IOUToken private IOU;
+    IOUToken private IOU; //Token used to show WETH contribution in IDO sale
     address public WETH_ADDRESS;
     address public GFI_ADDRESS;
-    bool public IDO_DONE;
-    bool public IDO_STARTED;
-    uint public totalWETHCollected;
-    uint public priceInEth;
-    uint public GFIforSale;
-    uint public WETHifSoldOut;
+    bool public IDO_DONE; //bool to show if the IDO is over
+    bool public IDO_STARTED; //bool to show if IDO has started
+    uint public totalWETHCollected; //How much WETH was collected in the IDO
+    uint constant public priceInWEth = 25000000000000;
+    uint constant public minAllocation = 25000000000000000; // 1,000 GFI
+    uint constant public maxAllocation = 500000000000000000;// 20,000 GFI
+    uint constant public GFIforSale = 40000000000000000000000000; //How much GFI is for sale
+    uint public WETHifSoldOut; //If the sale is sold out how much WETH would the contract get
+    uint public saleEndBlock;
+    uint constant public saleLength = 41500;
     
-    constructor(address _WETH_ADDRESS, address _GFI_ADDRESS, uint _priceInEth){
+    constructor(address _WETH_ADDRESS, address _GFI_ADDRESS){
         WETH_ADDRESS = _WETH_ADDRESS;
         GFI_ADDRESS = _GFI_ADDRESS;
         WETH = IERC20(WETH_ADDRESS);
         GFI = IERC20(GFI_ADDRESS);
         IOU = new IOUToken("GFI_IDO_IOU", "WETH_GFI");
-        priceInEth = _priceInEth;
     }
     
     function getIOUAddress() external view returns(address){
@@ -47,6 +50,8 @@ contract GravityIDO is Ownable {
     function buyStake(uint _amount) external {
         require(IDO_STARTED, "IDO has not started!");
         require(!IDO_DONE, "IDO sale is finished!");
+        require(_amount >= minAllocation, "Amount is less than the minimum allocaiton!");
+        require(_amount <= maxAllocation, "Amount is greater than the maximum allocaiton!");
         require(WETH.transferFrom(msg.sender, address(this), _amount), "WETH transferFrom Failed!");
         IOU.mintIOU(msg.sender, _amount);
     }
@@ -61,10 +66,10 @@ contract GravityIDO is Ownable {
         if (totalWETHCollected > WETHifSoldOut){
             uint userPercent = (10**18) * userBal / totalWETHCollected;
             GFItoUser = userPercent * GFIforSale / (10 ** 18);
-            WETHtoReturn = userBal - (GFItoUser*priceInEth/(10**18));
+            WETHtoReturn = userBal - (GFItoUser*priceInWEth/(10**18));
         }
         else {
-            GFItoUser = (10**18) * userBal / priceInEth;
+            GFItoUser = (10**18) * userBal / priceInWEth;
         }
         
         //Transfer tokens to user
@@ -76,18 +81,35 @@ contract GravityIDO is Ownable {
     
     function startIDO() external onlyOwner{
         require(!IDO_STARTED, "IDO sale already started!");
+        require(GFI.balanceOf(address(this)) == GFIforSale, "IDO Contract does not have enough GFI to start sale!");
+        saleEndBlock = block.number + saleLength;
         IDO_STARTED = true;
     }
     
     function endIDO() external onlyOwner{
+        
+        require(block.number >= saleEndBlock, "Minimum Sale Time has not passed!");
         require(!IDO_DONE, "IDO sale already ended!");
-        require(GFI.balanceOf(address(this)) > 0, "Contract holds no GFI tokens!");
+        require(GFI.balanceOf(address(this)) == GFIforSale, "Contract does not hold enough GFI tokens!");
         require(WETH.balanceOf(address(this)) > 0, "Contract holds no WETH!");
         
-        GFIforSale = GFI.balanceOf(address(this));
         totalWETHCollected = WETH.balanceOf(address(this));
-        WETHifSoldOut = GFIforSale * priceInEth / (10**18);
+        WETHifSoldOut = GFIforSale * priceInWEth / (10**18);
         IDO_DONE = true;
+    }
+    
+    function withdraw() external onlyOwner{
+        require(IDO_DONE, "IDO sale is not over yet!");
+        if (totalWETHCollected >= WETHifSoldOut){
+            // If all GFI are sold
+            require(WETH.transfer(msg.sender, WETHifSoldOut), "Failed to return WETH to Owner");
+        }
+        else {
+            //Not all GFI tokens were sold.
+            require(WETH.transfer(msg.sender, totalWETHCollected), "Failed to return WETH to Owner");
+            uint GFItoReturn = (10**18) * (WETHifSoldOut - totalWETHCollected)/priceInWEth; //Need to confirm this is correct
+            require(GFI.transfer(msg.sender, GFItoReturn), "Failed to transfer GFI to Owner");
+        }
     }
 }
 

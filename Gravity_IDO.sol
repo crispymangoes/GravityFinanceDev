@@ -21,11 +21,16 @@ contract GravityIDO is Ownable {
     uint constant public maxAllocation = 5 * 10 ** 17;// 20,000 GFI
     uint constant public GFIforSale = 4 * 10 ** 25; //How much GFI is for sale
     uint public WETHifSoldOut; //If the sale is sold out how much WETH would the contract get
-    uint public saleEndTime;
+    uint public saleStartTime = 1621404000;
+    uint public saleEndTime = 1621490400;
     uint constant public saleLength = 86400;
     //uint constant public timeToClaim = 5184000; //Approximately 2 months after IDO sale
     uint constant public timeToClaim = 86400; // FOR DEVELOPMENT TESTING ONLY!!!!
     mapping(address => uint) public contributedBal;
+    
+    event BuyStake(address buyer, uint totalStake); //Emits user address, and their TOTAL stake
+    event ClaimStake(address claimer, uint GFIclaimed, uint WETHreturned); // Emits user address, and how much GFI, WETH they recieved
+    event WETHUpdate(uint newTotal); //Emits new total of WETH in IDO contract
     
     constructor(address _WETH_ADDRESS, address _GFI_ADDRESS){
         WETH_ADDRESS = _WETH_ADDRESS;
@@ -33,6 +38,12 @@ contract GravityIDO is Ownable {
         WETH = IERC20(WETH_ADDRESS);
         GFI = IERC20(GFI_ADDRESS);
         IOU = new IOUToken("GFI_IDO_IOU", "WETH_GFI");
+        
+     /**
+     * @dev Only include the below lines for testing.
+     */
+     saleStartTime = block.timestamp;
+     saleEndTime = saleStartTime + 3600; //Sale goes for one hour
     }
     
     function getIOUAddress() external view returns(address){
@@ -51,19 +62,22 @@ contract GravityIDO is Ownable {
     }
 
     function buyStake(uint _amount) external {
-        require(IDO_STARTED, "IDO has not started!");
-        require(block.timestamp < saleEndTime, "IDO sale is finished!");
+        require(block.timestamp >= saleStartTime, "IDO has not started!");
+        require(block.timestamp <= saleEndTime, "IDO sale is finished!");
         require((contributedBal[msg.sender] + _amount) <= maxAllocation, "Exceeds max allocation!");
         require(_amount > 0, "Amount must be greater than zero!");
         require(WETH.transferFrom(msg.sender, address(this), _amount), "WETH transferFrom Failed!");
-        totalWETHCollected = totalWETHCollected + _amount; // Update here isntead of using balanceOf in endIDO function
+        totalWETHCollected = totalWETHCollected + _amount; // Update here instead of using balanceOf in endIDO function
         contributedBal[msg.sender] = contributedBal[msg.sender] + _amount;
         IOU.mintIOU(msg.sender, _amount);
+        emit BuyStake(msg.sender, contributedBal[msg.sender]);
+        emit WETHUpdate(totalWETHCollected);
     }
     
     function claimStake() external {
-        require(IDO_DONE, "IDO sale is not over yet!");
+        require(IDO_DONE, "IDO sale is not over yet OR claim period has not yet started!");
         uint userBal = IOU.balanceOf(msg.sender);
+        require(userBal > 0, "Caller has no WETH_GFI tokens to claim!");
         require(IOU.transferFrom(msg.sender, address(this), userBal), "Failed to transfer IOU to contract!"); //Not sure if this is needed, could just burn the tokens form the user address
         IOU.burnIOU(address(this), userBal);
         uint GFItoUser;
@@ -82,17 +96,10 @@ contract GravityIDO is Ownable {
         if (WETHtoReturn > 0){
             require(WETH.transfer(msg.sender, WETHtoReturn), "Failed to return extra WETH to claimer");
         }
-    }
-    
-    function startIDO() external onlyOwner{
-        require(!IDO_STARTED, "IDO sale already started!");
-        require(GFI.balanceOf(address(this)) >= GFIforSale, "IDO Contract does not have enough GFI to start sale!");
-        saleEndTime = block.timestamp + saleLength;
-        IDO_STARTED = true;
+        emit ClaimStake(msg.sender, GFItoUser, WETHtoReturn);
     }
     
     function endIDO() external onlyOwner{
-        require(IDO_STARTED, "Sale has to begin before you can end it!");
         require(block.timestamp >= saleEndTime, "Minimum Sale Time has not passed!");
         require(!IDO_DONE, "IDO sale already ended!");
         require(GFI.balanceOf(address(this)) >= GFIforSale, "Contract does not hold enough GFI tokens!");

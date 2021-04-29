@@ -15,18 +15,19 @@ contract GravityIDO is Ownable {
     address public GFI_ADDRESS;
     address constant public TREASURY_ADDRESS = 0xE471f43De327bF352b5E922FeA92eF6D026B4Af0;
     bool public IDO_DONE; //bool to show if the IDO is over
-    bool public IDO_STARTED; //bool to show if IDO has started
+    //bool public IDO_STARTED; //bool to show if IDO has started
     uint public totalWETHCollected; //How much WETH was collected in the IDO
     uint constant public priceInWEth = 25 * 10 ** 12;
     uint constant public maxAllocation = 5 * 10 ** 17;// 20,000 GFI
-    uint constant public GFIforSale = 4 * 10 ** 25; //How much GFI is for sale
-    uint public WETHifSoldOut; //If the sale is sold out how much WETH would the contract get
+    uint public GFIforSale = 4 * 10 ** 25; //How much GFI is for sale //TODO make this constant again
+    uint public WETHifSoldOut = GFIforSale * priceInWEth / (10**18); //If the sale is sold out how much WETH would the contract get
     uint public saleStartTime = 1621404000;
     uint public saleEndTime = 1621490400;
     uint constant public saleLength = 86400;
     //uint constant public timeToClaim = 5184000; //Approximately 2 months after IDO sale
     uint constant public timeToClaim = 86400; // FOR DEVELOPMENT TESTING ONLY!!!!
     mapping(address => uint) public contributedBal;
+    bool public ownerShareWithdrawn;
     
     event BuyStake(address buyer, uint totalStake); //Emits user address, and their TOTAL stake
     event ClaimStake(address claimer, uint GFIclaimed, uint WETHreturned); // Emits user address, and how much GFI, WETH they recieved
@@ -43,7 +44,9 @@ contract GravityIDO is Ownable {
      * @dev Only include the below lines for testing.
      */
      saleStartTime = block.timestamp;
-     saleEndTime = saleStartTime + 3600; //Sale goes for one hour
+     saleEndTime = saleStartTime + 1800; //Sale goes for one half hour
+     GFIforSale = 2 * 10**22; //Max WETH collected is 0.5 WETH
+     WETHifSoldOut = GFIforSale * priceInWEth / (10**18);
     }
     
     function getIOUAddress() external view returns(address){
@@ -51,12 +54,12 @@ contract GravityIDO is Ownable {
     }
     
     function setWETH_ADDRESS(address _address) external onlyOwner{
-        require(!IDO_STARTED, "IDO is already started!");
+        require(block.timestamp <= saleStartTime, "IDO has started cannot change address!");
         WETH_ADDRESS = _address;
         WETH = IERC20(WETH_ADDRESS);
     }
     function setGFI_ADDRESS(address _address) external onlyOwner{
-        require(!IDO_STARTED, "IDO is already started!");
+        require(block.timestamp <= saleStartTime, "IDO has started cannot change address!");
         GFI_ADDRESS = _address;
         GFI = IERC20(GFI);
     }
@@ -104,13 +107,13 @@ contract GravityIDO is Ownable {
         require(!IDO_DONE, "IDO sale already ended!");
         require(GFI.balanceOf(address(this)) >= GFIforSale, "Contract does not hold enough GFI tokens!");
         require(WETH.balanceOf(address(this)) > 0, "Contract holds no WETH!");
-        
-        WETHifSoldOut = GFIforSale * priceInWEth / (10**18);
         IDO_DONE = true;
     }
     
     function withdraw() external onlyOwner{
+        require(!ownerShareWithdrawn, "Owner has already withdrawn their share!");
         require(IDO_DONE, "IDO sale is not over yet!");
+        ownerShareWithdrawn = true;
         if (totalWETHCollected >= WETHifSoldOut){
             // If all GFI are sold
             require(WETH.transfer(TREASURY_ADDRESS, WETHifSoldOut), "Failed to return WETH to Owner");
@@ -118,13 +121,13 @@ contract GravityIDO is Ownable {
         else {
             //Not all GFI tokens were sold.
             require(WETH.transfer(TREASURY_ADDRESS, totalWETHCollected), "Failed to return WETH to Owner");
-            uint GFItoReturn = (10**18) * (WETHifSoldOut - totalWETHCollected)/priceInWEth; //Need to confirm this is correct
+            uint GFItoReturn = (10**18) * (WETHifSoldOut - totalWETHCollected)/priceInWEth;
             require(GFI.transfer(TREASURY_ADDRESS, GFItoReturn), "Failed to transfer GFI to Owner");
         }
     }
     
     function withdrawAll() external onlyOwner{
-        require(block.timestamp > (saleEndTime + timeToClaim), "Owner must wait approx 2 months until they can claim remaining assets!");
+        require((block.timestamp > (saleEndTime + timeToClaim)) || (IOU.totalSupply() == 0), "Owner must wait approx 2 months until they can claim remaining assets OR until all IOUs are fulfilled!");
         require(WETH.transfer(TREASURY_ADDRESS, WETH.balanceOf(address(this))), "Failed to return WETH to Owner");
         require(GFI.transfer(TREASURY_ADDRESS, GFI.balanceOf(address(this))), "Failed to transfer GFI to Owner");
     }

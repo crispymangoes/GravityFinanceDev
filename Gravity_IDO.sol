@@ -54,6 +54,7 @@ contract GravityIDO is Ownable {
         require(IDO_STARTED, "IDO has not started!");
         require(block.timestamp < saleEndTime, "IDO sale is finished!");
         require((contributedBal[msg.sender] + _amount) <= maxAllocation, "Exceeds max allocation!");
+        require(_amount > 0, "Amount must be greater than zero!");
         require(WETH.transferFrom(msg.sender, address(this), _amount), "WETH transferFrom Failed!");
         totalWETHCollected = totalWETHCollected + _amount; // Update here isntead of using balanceOf in endIDO function
         contributedBal[msg.sender] = contributedBal[msg.sender] + _amount;

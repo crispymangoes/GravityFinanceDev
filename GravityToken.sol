@@ -4,6 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
+//Tim Address
+//0xeb678812778B68a48001B4A9A4A04c4924c33598
 
 contract GravityToken is ERC20, Ownable{
     
@@ -17,7 +19,7 @@ contract GravityToken is ERC20, Ownable{
     }
     
     constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol) { 
-        _mint(msg.sender, 12000000000000000000000000);
+        _mint(msg.sender, 1200000000000000000000000000);
     }
     
     function setGovernanceAddress(address _address) external onlyOwner{

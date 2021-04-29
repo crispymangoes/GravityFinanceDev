@@ -25,6 +25,7 @@ contract GravityIDO is Ownable {
     uint constant public saleLength = 86400;
     //uint constant public timeToClaim = 5184000; //Approximately 2 months after IDO sale
     uint constant public timeToClaim = 86400; // FOR DEVELOPMENT TESTING ONLY!!!!
+    mapping(address => uint) public contributedBal;
     
     constructor(address _WETH_ADDRESS, address _GFI_ADDRESS){
         WETH_ADDRESS = _WETH_ADDRESS;
@@ -52,9 +53,10 @@ contract GravityIDO is Ownable {
     function buyStake(uint _amount) external {
         require(IDO_STARTED, "IDO has not started!");
         require(block.timestamp < saleEndTime, "IDO sale is finished!");
-        require(_amount <= maxAllocation, "Amount is greater than the maximum allocaiton!");
+        require((contributedBal[msg.sender] + _amount) <= maxAllocation, "Exceeds max allocation!");
         require(WETH.transferFrom(msg.sender, address(this), _amount), "WETH transferFrom Failed!");
         totalWETHCollected = totalWETHCollected + _amount; // Update here isntead of using balanceOf in endIDO function
+        contributedBal[msg.sender] = contributedBal[msg.sender] + _amount;
         IOU.mintIOU(msg.sender, _amount);
     }
     
@@ -89,10 +91,10 @@ contract GravityIDO is Ownable {
     }
     
     function endIDO() external onlyOwner{
-        
+        require(IDO_STARTED, "Sale has to begin before you can end it!");
         require(block.timestamp >= saleEndTime, "Minimum Sale Time has not passed!");
         require(!IDO_DONE, "IDO sale already ended!");
-        require(GFI.balanceOf(address(this)) == GFIforSale, "Contract does not hold enough GFI tokens!");
+        require(GFI.balanceOf(address(this)) >= GFIforSale, "Contract does not hold enough GFI tokens!");
         require(WETH.balanceOf(address(this)) > 0, "Contract holds no WETH!");
         
         WETHifSoldOut = GFIforSale * priceInWEth / (10**18);

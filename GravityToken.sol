@@ -19,7 +19,7 @@ contract GravityToken is ERC20, Ownable{
     }
     
     constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol) { 
-        _mint(msg.sender, 1200000000000000000000000000);
+        _mint(msg.sender, 12 * (10**26) );
     }
     
     function setGovernanceAddress(address _address) external onlyOwner{

@@ -125,7 +125,6 @@ contract GravityIDO is Ownable {
     }
     
     function withdrawAll() external onlyOwner{
-        require(block.timestamp >= saleEndTime, "IDO sale is not over yet!");
         require((block.timestamp > (saleEndTime + timeToClaim)) || (IOU.totalSupply() == 0), "Owner must wait approx 2 months until they can claim remaining assets OR until all IOUs are fulfilled!");
         require(WETH.transfer(TREASURY_ADDRESS, WETH.balanceOf(address(this))), "Failed to return WETH to Owner");
         require(GFI.transfer(TREASURY_ADDRESS, GFI.balanceOf(address(this))), "Failed to transfer GFI to Owner");

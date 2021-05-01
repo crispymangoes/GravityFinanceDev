@@ -132,19 +132,6 @@
 	},
 	{
 		"inputs": [],
-		"name": "IDO_STARTED",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "TREASURY_ADDRESS",
 		"outputs": [
 			{
@@ -223,13 +210,6 @@
 	},
 	{
 		"inputs": [],
-		"name": "endIDO",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "getIOUAddress",
 		"outputs": [
 			{
@@ -262,6 +242,19 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "ownerShareWithdrawn",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
 			}
 		],
 		"stateMutability": "view",

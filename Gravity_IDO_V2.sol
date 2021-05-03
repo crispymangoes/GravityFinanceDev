@@ -14,18 +14,15 @@ contract GravityIDO is Ownable {
     address public WETH_ADDRESS;
     address public GFI_ADDRESS;
     address constant public TREASURY_ADDRESS = 0xE471f43De327bF352b5E922FeA92eF6D026B4Af0;
-    bool public IDO_DONE; //bool to show if the IDO is over
-    //bool public IDO_STARTED; //bool to show if IDO has started
+    address constant public PROMO_ADDRESS = 0x8c7887BA91b359BC574525F05Cc403F51858c2E4;
     uint public totalWETHCollected; //How much WETH was collected in the IDO
     uint constant public priceInWEth = 25 * 10 ** 12;
     uint constant public maxAllocation = 5 * 10 ** 17;// 20,000 GFI
-    uint public GFIforSale = 4 * 10 ** 25; //How much GFI is for sale //TODO make this constant again
+    uint constant public GFIforSale = 4 * 10 ** 25; //How much GFI is for sale
     uint public WETHifSoldOut = GFIforSale * priceInWEth / (10**18); //If the sale is sold out how much WETH would the contract get
     uint public saleStartTime = 1621404000;
     uint public saleEndTime = 1621490400;
-    uint constant public saleLength = 86400;
-    //uint constant public timeToClaim = 5184000; //Approximately 2 months after IDO sale
-    uint constant public timeToClaim = 86400; // FOR DEVELOPMENT TESTING ONLY!!!!
+    uint constant public timeToClaim = 5184000; //Approximately 2 months after IDO sale
     mapping(address => uint) public contributedBal;
     bool public ownerShareWithdrawn;
     
@@ -38,15 +35,7 @@ contract GravityIDO is Ownable {
         GFI_ADDRESS = _GFI_ADDRESS;
         WETH = IERC20(WETH_ADDRESS);
         GFI = IERC20(GFI_ADDRESS);
-        IOU = new IOUToken("GFI_IDO_IOU", "WETH_GFI");
-        
-     /**
-     * @dev Only include the below lines for testing.
-     */
-     saleStartTime = block.timestamp;
-     saleEndTime = saleStartTime + 1800; //Sale goes for one half hour
-     GFIforSale = 2 * 10**22; //Max WETH collected is 0.5 WETH
-     WETHifSoldOut = GFIforSale * priceInWEth / (10**18);
+        IOU = new IOUToken("GFI_IDO_IOU", "GFI_IDO");
     }
     
     function getIOUAddress() external view returns(address){
@@ -114,20 +103,20 @@ contract GravityIDO is Ownable {
         ownerShareWithdrawn = true;
         if (totalWETHCollected >= WETHifSoldOut){
             // If all GFI are sold
-            require(WETH.transfer(TREASURY_ADDRESS, WETHifSoldOut), "Failed to return WETH to Owner");
+            require(WETH.transfer(TREASURY_ADDRESS, WETHifSoldOut), "Failed to return WETH to Treasury wallet  ");
         }
         else {
             //Not all GFI tokens were sold.
-            require(WETH.transfer(TREASURY_ADDRESS, totalWETHCollected), "Failed to return WETH to Owner");
+            require(WETH.transfer(TREASURY_ADDRESS, totalWETHCollected), "Failed to return WETH to Treasury wallet");
             uint GFItoReturn = (10**18) * (WETHifSoldOut - totalWETHCollected)/priceInWEth;
-            require(GFI.transfer(TREASURY_ADDRESS, GFItoReturn), "Failed to transfer GFI to Owner");
+            require(GFI.transfer(PROMO_ADDRESS, GFItoReturn), "Failed to transfer GFI to Promotion wallet");
         }
     }
     
     function withdrawAll() external onlyOwner{
         require((block.timestamp > (saleEndTime + timeToClaim)) || (IOU.totalSupply() == 0), "Owner must wait approx 2 months until they can claim remaining assets OR until all IOUs are fulfilled!");
-        require(WETH.transfer(TREASURY_ADDRESS, WETH.balanceOf(address(this))), "Failed to return WETH to Owner");
-        require(GFI.transfer(TREASURY_ADDRESS, GFI.balanceOf(address(this))), "Failed to transfer GFI to Owner");
+        require(WETH.transfer(TREASURY_ADDRESS, WETH.balanceOf(address(this))), "Failed to return WETH to Treasury wallet");
+        require(GFI.transfer(PROMO_ADDRESS, GFI.balanceOf(address(this))), "Failed to transfer GFI to Promotion wallet");
     }
 }
 
